@@ -22,7 +22,7 @@ RTC_CONFIGURATION = RTCConfiguration([
 # Tải mô hình đã lưu từ Google Drive
 @st.cache_resource
 def load_model():
-    file_id = '1dK8AzMvw2VyfGOpBxjgMDO1ZFev9Wp-9'  # Thay thế bằng ID tệp Google Drive của bạn
+    file_id = 'https://drive.google.com/uc?export=download&id=1dK8AzMvw2VyfGOpBxjgMDO1ZFev9Wp-9'  # Thay thế bằng ID tệp Google Drive của bạn
     output = 'SVMmodel_Final.pkl'
     gdown.download(id=file_id, output=output, quiet=False, fuzzy=True)
     
@@ -59,12 +59,7 @@ def extract_feature_final(image_test):
 
 class EmotionRecognizer(VideoProcessorBase):
     def __init__(self):
-        # Đảm bảo đường dẫn tương đối tới tệp cascade
-        cascade_path = 'models/haarcascade_frontalface_default.xml'
-        if not os.path.exists(cascade_path):
-            st.error(f"Không tìm thấy tệp cascade: {cascade_path}")
-            st.stop()
-        self.faceCascade = cv2.CascadeClassifier(cascade_path)
+        self.faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         self.model = model
 
     def recv(self, frame):
