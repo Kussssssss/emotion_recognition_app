@@ -22,7 +22,7 @@ RTC_CONFIGURATION = RTCConfiguration([
 # Tải mô hình đã lưu từ Google Drive
 @st.cache_resource
 def load_model():
-    file_id = 'https://drive.google.com/uc?export=download&id=1dK8AzMvw2VyfGOpBxjgMDO1ZFev9Wp-9'  # Thay thế bằng ID tệp Google Drive của bạn
+    file_id = '1dK8AzMvw2VyfGOpBxjgMDO1ZFev9Wp-9'  # Thay thế bằng ID tệp Google Drive của bạn
     output = 'SVMmodel_Final.pkl'
     gdown.download(id=file_id, output=output, quiet=False, fuzzy=True)
     
