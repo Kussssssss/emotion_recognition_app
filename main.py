@@ -8,17 +8,39 @@ from skimage.feature import hog
 import joblib
 from streamlit_webrtc import VideoProcessorBase, webrtc_streamer
 import gdown
+import os
+from aiortc import RTCConfiguration, RTCIceServer
 
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+# Cấu hình RTC với STUN server
+RTC_CONFIGURATION = RTCConfiguration([
+    RTCIceServer(urls=["stun:stun.l.google.com:19302"])
+])
+
 # Tải mô hình đã lưu từ Google Drive
 @st.cache_resource
 def load_model():
-    url = 'https://drive.google.com/uc?export=download&id=1dK8AzMvw2VyfGOpBxjgMDO1ZFev9Wp-9'
+    file_id = '1dK8AzMvw2VyfGOpBxjgMDO1ZFev9Wp-9'  # Thay thế bằng ID tệp Google Drive của bạn
     output = 'SVMmodel_Final.pkl'
-    gdown.download(url, output, quiet=False)
-    model = joblib.load(output)
+    gdown.download(id=file_id, output=output, quiet=False, fuzzy=True)
+    
+    # Kiểm tra kích thước tệp sau khi tải xuống
+    if os.path.exists(output):
+        file_size = os.path.getsize(output)
+        st.write(f"Kích thước tệp mô hình: {file_size / (1024 * 1024):.2f} MB")
+    else:
+        st.error("Không thể tải tệp mô hình từ Google Drive.")
+        st.stop()
+    
+    try:
+        model = joblib.load(output)
+        st.success("Mô hình được tải thành công.")
+    except Exception as e:
+        st.error(f"Lỗi khi tải mô hình: {e}")
+        st.stop()
+    
     return model
 
 # Sử dụng mô hình
@@ -37,7 +59,12 @@ def extract_feature_final(image_test):
 
 class EmotionRecognizer(VideoProcessorBase):
     def __init__(self):
-        self.faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        # Đảm bảo đường dẫn tương đối tới tệp cascade
+        cascade_path = 'models/haarcascade_frontalface_default.xml'
+        if not os.path.exists(cascade_path):
+            st.error(f"Không tìm thấy tệp cascade: {cascade_path}")
+            st.stop()
+        self.faceCascade = cv2.CascadeClassifier(cascade_path)
         self.model = model
 
     def recv(self, frame):
@@ -55,7 +82,11 @@ class EmotionRecognizer(VideoProcessorBase):
 
             # Trích xuất đặc trưng và dự đoán cảm xúc
             final_image = extract_feature_final(roi_gray)
-            prediction = self.model.predict([final_image])[0]
+            try:
+                prediction = self.model.predict([final_image])[0]
+            except Exception as e:
+                prediction = "Error"
+                st.error(f"Lỗi khi dự đoán cảm xúc: {e}")
 
             # Vẽ hình chữ nhật và hiển thị cảm xúc
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -71,7 +102,8 @@ def main():
         key="emotion-recognition",
         video_processor_factory=EmotionRecognizer,
         media_stream_constraints={"video": True, "audio": False},
-        async_processing=True
+        async_processing=True,
+        rtc_configuration=RTC_CONFIGURATION  # Thêm cấu hình RTC vào đây
     )
 
 if __name__ == "__main__":
