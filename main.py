@@ -11,6 +11,7 @@ import gdown
 import os
 from aiortc import RTCConfiguration, RTCIceServer
 
+# Cấu hình Python event loop cho Windows nếu cần
 if sys.platform.startswith('win'):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -53,42 +54,51 @@ def resize_image(image, size):
 # Hàm trích xuất đặc trưng
 def extract_feature_final(image_test):
     im = resize_image(image_test, 64)
-    fd1 = hog(im, orientations=7, pixels_per_cell=(8, 8),
-              cells_per_block=(4, 4), block_norm='L2-Hys', transform_sqrt=False)
+    fd1 = hog(im, orientations=5, pixels_per_cell=(8, 8),
+              cells_per_block=(2, 2), block_norm='L2-Hys', transform_sqrt=False)
     return fd1
 
 class EmotionRecognizer(VideoProcessorBase):
     def __init__(self):
-        self.faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        # Đảm bảo đường dẫn tương đối tới tệp cascade
+        cascade_path = 'haarcascade_frontalface_default.xml'
+        if not os.path.exists(cascade_path):
+            st.error(f"Không tìm thấy tệp cascade: {cascade_path}")
+            st.stop()
+        self.faceCascade = cv2.CascadeClassifier(cascade_path)
         self.model = model
 
     def recv(self, frame):
-        img = frame.to_ndarray(format="bgr24")
+        try:
+            img = frame.to_ndarray(format="bgr24")
 
-        # Lật hình ảnh theo trục ngang
-        img = cv2.flip(img, 1)
+            # Lật hình ảnh theo trục ngang
+            img = cv2.flip(img, 1)
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        equalized = cv2.equalizeHist(gray)
-        faces = self.faceCascade.detectMultiScale(equalized, scaleFactor=1.1, minNeighbors=4)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            equalized = cv2.equalizeHist(gray)
+            faces = self.faceCascade.detectMultiScale(equalized, scaleFactor=1.1, minNeighbors=4)
 
-        for (x, y, w, h) in faces:
-            roi_gray = equalized[y:y+h, x:x+w]
+            for (x, y, w, h) in faces:
+                roi_gray = equalized[y:y+h, x:x+w]
 
-            # Trích xuất đặc trưng và dự đoán cảm xúc
-            final_image = extract_feature_final(roi_gray)
-            try:
-                prediction = self.model.predict([final_image])[0]
-            except Exception as e:
-                prediction = "Error"
-                st.error(f"Lỗi khi dự đoán cảm xúc: {e}")
+                # Trích xuất đặc trưng và dự đoán cảm xúc
+                final_image = extract_feature_final(roi_gray)
+                try:
+                    prediction = self.model.predict([final_image])[0]
+                except Exception as e:
+                    prediction = "Error"
+                    st.error(f"Lỗi khi dự đoán cảm xúc: {e}")
 
-            # Vẽ hình chữ nhật và hiển thị cảm xúc
-            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cv2.putText(img, prediction, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.9, (0, 255, 0), 2)
+                # Vẽ hình chữ nhật và hiển thị cảm xúc
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(img, prediction, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.9, (0, 255, 0), 2)
 
-        return av.VideoFrame.from_ndarray(img, format="bgr24")
+            return av.VideoFrame.from_ndarray(img, format="bgr24")
+        except Exception as e:
+            st.error(f"Lỗi trong quá trình xử lý frame: {e}")
+            return frame
 
 def main():
     st.title("Nhận Diện Cảm Xúc Khuôn Mặt Real-Time")
