@@ -104,8 +104,7 @@ def main():
         key="emotion-recognition",
         video_processor_factory=EmotionRecognizer,
         media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
-        rtc_configuration=RTC_CONFIGURATION  # Truyền dict, không phải đối tượng RTCConfiguration
+        async_processing=False
     )
 
 if __name__ == "__main__":
