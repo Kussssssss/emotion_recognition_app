@@ -1,9 +1,5 @@
 import asyncio
 import sys
-
-if sys.platform.startswith('win'):
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
 import streamlit as st
 import cv2
 import numpy as np
@@ -11,9 +7,22 @@ import av
 from skimage.feature import hog
 import joblib
 from streamlit_webrtc import VideoProcessorBase, webrtc_streamer
+import gdown
 
-# Tải mô hình đã lưu
-load_model = joblib.load(r"C:\Users\Admin\PycharmProjects\SVMmodel_Final.pkl")
+if sys.platform.startswith('win'):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+# Tải mô hình đã lưu từ Google Drive
+@st.cache_resource
+def load_model():
+    url = 'https://drive.google.com/uc?export=download&id=1dK8AzMvw2VyfGOpBxjgMDO1ZFev9Wp-9'
+    output = 'SVMmodel_Final.pkl'
+    gdown.download(url, output, quiet=False)
+    model = joblib.load(output)
+    return model
+
+# Sử dụng mô hình
+model = load_model()
 
 # Hàm thay đổi kích thước ảnh
 def resize_image(image, size):
@@ -29,7 +38,7 @@ def extract_feature_final(image_test):
 class EmotionRecognizer(VideoProcessorBase):
     def __init__(self):
         self.faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        self.model = load_model
+        self.model = model
 
     def recv(self, frame):
         img = frame.to_ndarray(format="bgr24")
